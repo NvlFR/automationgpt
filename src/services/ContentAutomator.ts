@@ -210,6 +210,25 @@ export class ContentAutomator {
         }
     }
 
+    async saveHistory(topic: string, url: string) {
+        const historyPath = path.join(process.cwd(), 'data', 'history.json');
+        let history: any[] = [];
+        
+        if (fs.existsSync(historyPath)) {
+            const fileContent = fs.readFileSync(historyPath, 'utf-8');
+            history = JSON.parse(fileContent);
+        }
+
+        history.push({
+            timestamp: new Date().toISOString(),
+            topic,
+            url
+        });
+
+        fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+        console.log(`📜 History URL disimpan ke: ${historyPath}`);
+    }
+
     async saveMarkdown(folderName: string, fileName: string, content: string) {
         const outputDir = path.join(process.cwd(), 'downloads', 'carousel_outputs', folderName);
         if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });

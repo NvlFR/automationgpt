@@ -3,6 +3,7 @@ import stealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { ContentAutomator } from './services/ContentAutomator.js';
+import { TelegramService } from './services/TelegramService.js';
 
 chromium.use(stealthPlugin());
 dotenv.config();
@@ -10,6 +11,7 @@ dotenv.config();
 const USER_DATA_DIR = path.join(process.cwd(), '.user_data');
 
 async function runAutomation() {
+    const telegram = new TelegramService();
     const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
         headless: false,
         args: ['--disable-blink-features=AutomationControlled'],
@@ -20,6 +22,7 @@ async function runAutomation() {
 
     try {
         console.log('🧪 TEST: DIRECT URL NAVIGATION & SUMMARY');
+        await telegram.sendMessage('🚀 Bot ChatGPT Automation dimulai...');
 
         // 1. Langsung tembak URL Project lu (URL yang lu kasih tadi)
         const PROJECT_URL = "https://chatgpt.com/g/g-p-6a1669c057e881918ba9615e0165b896-content-framework/project";
@@ -34,10 +37,19 @@ async function runAutomation() {
         if (result !== "No text found.") {
             // Simpan ke Markdown
             await bot.saveMarkdown(TOPIC_FOLDER, "summary_report", result);
+            
+            // Simpan URL ke History
+            const currentUrl = page.url();
+            await bot.saveHistory(TOPIC_FOLDER, currentUrl);
+            
+            // Kirim ke Telegram
+            const filePath = path.join(process.cwd(), 'downloads', 'carousel_outputs', TOPIC_FOLDER, 'summary_report.md');
+            await telegram.sendDocument(filePath, `✅ Summary Berhasil di-generate!\nTopik: ${TOPIC_FOLDER}\n🔗 URL Chat: ${currentUrl}`);
         } else {
             console.log('🔍 Debug: Mengambil dump halaman karena teks tidak ditemukan...');
             const { dumpPage } = await import('./utils/logger.js');
             await dumpPage(page, 'failed-summary');
+            await telegram.sendMessage('⚠️ Gagal mengambil summary, cek log untuk detail.');
         }
 
         console.log('--------------------------------------------------');
@@ -49,6 +61,7 @@ async function runAutomation() {
 
     } catch (error) {
         console.error('❌ Terjadi Error saat Test:', error);
+        await telegram.sendMessage(`❌ Error: ${error.message}`);
     } finally {
         console.log('Selesai. Menutup browser dalam 10 detik...');
         await page.waitForTimeout(10000);
